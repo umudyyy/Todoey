@@ -10,7 +10,7 @@ import UIKit
 
 class TodoListViewController: UITableViewController {   // ChatViewController'da bunların hepsini (UIViewController, UITableViewDelegate, UITableViewDataSource, UITextFieldDelegate) eklemiştik. Burada main.storyboard'da bir View controller içine ChatViewController'deki gibi table view eklemeyip, direk TableViewController eklediğimiz için, bunun arka planını swift hallediyor ve delegate, datasource decleration'a gerek kalmıyor.
     
-    let itemArray =  ["Find Mike","Buy Eggos", "Destroy Demogorgon"]
+    var itemArray =  ["Find Mike","Buy Eggos", "Destroy Demogorgon"]
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -37,6 +37,8 @@ class TodoListViewController: UITableViewController {   // ChatViewController'da
         return cell
     }
     
+    //MARK - TableView Delegate Methods
+    
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         
 //        print(itemArray[indexPath.row])
@@ -51,6 +53,44 @@ class TodoListViewController: UITableViewController {   // ChatViewController'da
         }
         
         tableView.deselectRow(at: indexPath, animated: true)
+    }
+    
+    //MARK - Add New Items
+    
+    
+    @IBAction func addButtonPressed(_ sender: UIBarButtonItem) {
+        
+        var textField = UITextField()
+        
+        let alert = UIAlertController(title: "Add New Todoey Item", message: "", preferredStyle: .alert)
+        
+        let action = UIAlertAction(title: "Add Item", style: .default)
+        {
+            (action) in    //closure
+//            print(textField.text!)
+            
+            if textField.text != "" {
+              self.itemArray.append(textField.text!)
+              self.tableView.reloadData()
+            }
+           
+     
+
+        }
+      
+        alert.addTextField { (alertTextField) in  //closure
+            alertTextField.placeholder = "Create new item"  //alertTextField burada local durumda çünkü closure içinde.. (closure içinde local durumda)
+            textField = alertTextField
+            
+   
+        }
+        
+       
+        alert.addAction(action)
+        
+        present(alert, animated: true, completion: nil)
+        
+       
     }
     
 
