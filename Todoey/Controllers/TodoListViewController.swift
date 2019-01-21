@@ -14,32 +14,43 @@ class TodoListViewController: UITableViewController {   // ChatViewController'da
     
     var itemArray = [Item]()
     
-    let defaults = UserDefaults.standard
+    
+    // * Şimdiye kadar Persistent data storage olarak data "save"lemek için userdafaults ve plist (codeable protocol ile)  single tables kullandık, şimdi
+    
+    let dataFilePath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.appendingPathComponent("Items.plist")  //userDomainMask = User's home directory,FileManager.default ta bir singleton shared.
+    
+//    let defaults = UserDefaults.standard  //bu da bir singleton shared.volume vs gibi şeyler kaydedilmeli bununla
     
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        let newItem =  Item()
-        newItem.title = "Find Mike"
-      
-        itemArray.append(newItem)
         
-        let newItem2 =  Item()
-        newItem2.title = "Buy Eggos"
-        itemArray.append(newItem2)
+        print(dataFilePath)
         
-        let newItem3 =  Item()
-        newItem3.title = "Destroy Demogorgon"
-        itemArray.append(newItem3)
+//        let newItem =  Item()
+//        newItem.title = "Find Mike"
+//      
+//        itemArray.append(newItem)
+//        
+//        let newItem2 =  Item()
+//        newItem2.title = "Buy Eggos"
+//        itemArray.append(newItem2)
+//        
+//        let newItem3 =  Item()
+//        newItem3.title = "Destroy Demogorgon"
+//        itemArray.append(newItem3)
+        
+        
+        loadItems()
         
       
         
         // Do any additional setup after loading the view, typically from a nib.
         
         
-        if let items = defaults.array(forKey: "TodoListArray") as? [Item] {
-            itemArray = items
-        }
+//        if let items = defaults.array(forKey: "TodoListArray") as? [Item] {
+//            itemArray = items
+//        }
         
         // target yani ChatViewController classındaki  tableViewTapped metodunu seç diyoruz
     }
@@ -84,6 +95,8 @@ class TodoListViewController: UITableViewController {   // ChatViewController'da
         
         
           itemArray[indexPath.row].done = !itemArray[indexPath.row].done
+        
+          saveItems()
 
 //yukarıdaki line bu görevi görüyor, kaldırdık.
 //        if itemArray[indexPath.row].done == false {
@@ -92,7 +105,7 @@ class TodoListViewController: UITableViewController {   // ChatViewController'da
 //            itemArray[indexPath.row].done = false
 //        }
        
-        tableView.reloadData()
+        
         
 //Bug'a neden oluyordu, hücreye check atıp, tabloyu aşağı kaydırınca, cell reuse olduğundan aşağıdaki hücreler de seçili oluyordu. Bunu bugu burayı kaldırıp yukarıdaki kodları ekleyip, tabloyu reload yaparak aştık..
         
@@ -127,10 +140,15 @@ class TodoListViewController: UITableViewController {   // ChatViewController'da
               newItem.title = textField.text!
                 
               self.itemArray.append(newItem)
+                
+              self.saveItems()
 
-              self.defaults.set(self.itemArray, forKey: "TodoListArray")
-
-              self.tableView.reloadData()
+                //User defaults singleton ile yapmıcaz. self.itemArray bir custom Item olarak oluşturdugumuz itemlardan oluştugu için aşağıdaki kod patlar userdefaults (singleton,shared.) ile.
+                //userdafaults ile custom itemlar yapamadıgımız için encoder ile yapıyoruz.
+//              self.defaults.set(self.itemArray, forKey: "TodoListArray")
+                
+             
+                
             }
 //            if let text = textField.text  { //veya böyle optional binding ile yapacaksın  if let text = textField.text as? String  böylede olur.
 //
@@ -158,6 +176,33 @@ class TodoListViewController: UITableViewController {   // ChatViewController'da
         present(alert, animated: true, completion: nil)
         
        
+    }
+    
+    func saveItems()  {
+        
+        let encoder =  PropertyListEncoder()
+        
+        do{
+            let data =  try encoder.encode(itemArray)
+            try data.write(to: dataFilePath!)
+        } catch {
+            print("Error encoding item array, \(error)")
+        }
+        
+        self.tableView.reloadData()
+    }
+    
+    func loadItems(){
+        
+        if let data =  try? Data(contentsOf: dataFilePath!) {
+            let decoder = PropertyListDecoder()
+            do {
+                itemArray = try decoder.decode([Item].self, from: data)
+            } catch {
+                print("Error decoding item array, \(error)")
+            }
+            
+        }
     }
     
 
