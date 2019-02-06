@@ -7,17 +7,28 @@
 //
 
 import UIKit
+import CoreData
 
-class TodoListViewController: UITableViewController {   // ChatViewController'da bunların hepsini (UIViewController, UITableViewDelegate, UITableViewDataSource, UITextFieldDelegate) eklemiştik. Burada main.storyboard'da bir View controller içine ChatViewController'deki gibi table view eklemeyip, direk TableViewController eklediğimiz için, bunun arka planını swift hallediyor ve delegate, datasource decleration'a gerek kalmıyor.
+class TodoListViewController: UITableViewController {   // ChatViewController'da bunların hepsini (UIViewController, UITableViewDelegate, UITableViewDataSource, UITextFieldDelegate) eklemiştik. Burada main.storyboard'da bir View controller içine ChatViewController'deki gibi table view eklemeyip, direk TableViewController eklediğimiz için, bunun arka planını swift hallediyor ve delegate, datasource decleration'a gerek kalmıyor. FlashChatteki gibi messageTableView.delegate = self kimi bir tanımlamaya gerek yok
     
 //    var itemArray =  ["Find Mike","Buy Eggos", "Destroy Demogorgon","a","b","c","d","e","f","g","h","ı","j","k","l","m","n","o","p","k","v","y","z"]
     
     var itemArray = [Item]()
     
+    var selectedCategory : Category? {
+        
+        didSet{
+            loadItems()
+        }
+    }
+    
     
     // * Şimdiye kadar Persistent data storage olarak data "save"lemek için userdafaults ve plist (codeable protocol ile)  single tables kullandık, şimdi
     
-    let dataFilePath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.appendingPathComponent("Items.plist")  //userDomainMask = User's home directory,FileManager.default ta bir singleton shared.
+//    let dataFilePath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.appendingPathComponent("Items.plist")  //userDomainMask = User's home directory,FileManager.default ta bir singleton shared.
+    
+    let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext // context, temporary context şeklindedir.
+    
     
 //    let defaults = UserDefaults.standard  //bu da bir singleton shared.volume vs gibi şeyler kaydedilmeli bununla
     
@@ -25,7 +36,11 @@ class TodoListViewController: UITableViewController {   // ChatViewController'da
         super.viewDidLoad()
         
         
-        print(dataFilePath)
+//        print(dataFilePath)
+        
+        print(FileManager.default.urls(for: .documentDirectory, in: .userDomainMask))
+        
+//        searchBar.delegate = self  böyle kod ile yapmak yerine sürükle bırak ile de delegate olarak set edebilirsin.
         
 //        let newItem =  Item()
 //        newItem.title = "Find Mike"
@@ -40,8 +55,9 @@ class TodoListViewController: UITableViewController {   // ChatViewController'da
 //        newItem3.title = "Destroy Demogorgon"
 //        itemArray.append(newItem3)
         
+    
         
-        loadItems()
+//         loadItems()
         
       
         
@@ -93,19 +109,25 @@ class TodoListViewController: UITableViewController {   // ChatViewController'da
         
 //        print(itemArray[indexPath.row])
         
+//   itemArray[indexPath.row].setValue("Completed", forKey: "title") //Update yapar. ama context.save çağrılması gerekir
         
-          itemArray[indexPath.row].done = !itemArray[indexPath.row].done
+//
+//         context.delete(itemArray[indexPath.row])  
+//         itemArray.remove(at: indexPath.row)
         
-          saveItems()
+        
+        
+         itemArray[indexPath.row].done = !itemArray[indexPath.row].done
+        
+         saveItems()
 
+        
 //yukarıdaki line bu görevi görüyor, kaldırdık.
 //        if itemArray[indexPath.row].done == false {
 //            itemArray[indexPath.row].done = true
 //        } else {
 //            itemArray[indexPath.row].done = false
 //        }
-       
-        
         
 //Bug'a neden oluyordu, hücreye check atıp, tabloyu aşağı kaydırınca, cell reuse olduğundan aşağıdaki hücreler de seçili oluyordu. Bunu bugu burayı kaldırıp yukarıdaki kodları ekleyip, tabloyu reload yaparak aştık..
         
@@ -135,9 +157,16 @@ class TodoListViewController: UITableViewController {   // ChatViewController'da
 //            print(textField.text!)
             
             if textField.text != "" && textField.text != nil {
+                
+        
 
-              let newItem = Item()
+              let newItem = Item(context: self.context)
+                
               newItem.title = textField.text!
+                
+              newItem.done = false
+                
+              newItem.parentCategory = self.selectedCategory
                 
               self.itemArray.append(newItem)
                 
@@ -180,31 +209,102 @@ class TodoListViewController: UITableViewController {   // ChatViewController'da
     
     func saveItems()  {
         
-        let encoder =  PropertyListEncoder()
+//        let encoder =  PropertyListEncoder()
         
-        do{
-            let data =  try encoder.encode(itemArray)
-            try data.write(to: dataFilePath!)
+//        do{
+//            let data =  try encoder.encode(itemArray) 
+//            try data.write(to: dataFilePath!)
+//        } catch {
+//            print("Error encoding item array, \(error)")
+//        }
+        
+        do{    
+           try context.save()
         } catch {
-            print("Error encoding item array, \(error)")
+            print("Error saving context \(error)")
         }
         
-        self.tableView.reloadData()
+        tableView.reloadData()
     }
     
-    func loadItems(){
+//    func loadItems(){
+//
+//        if let data =  try? Data(contentsOf: dataFilePath!) {
+//            let decoder = PropertyListDecoder()
+//            do {
+//                itemArray = try decoder.decode([Item].self, from: data)
+//            } catch {
+//                print("Error decoding item array, \(error)")
+//            }
+//
+//        }
+//    }
+    
+    func loadItems(with request: NSFetchRequest<Item> = Item.fetchRequest(), predicate: NSPredicate? = nil ) {   // default value sağlıyoruz..
         
-        if let data =  try? Data(contentsOf: dataFilePath!) {
-            let decoder = PropertyListDecoder()
-            do {
-                itemArray = try decoder.decode([Item].self, from: data)
-            } catch {
-                print("Error decoding item array, \(error)")
-            }
-            
+//        let request : NSFetchRequest<Item> = Item.fetchRequest()
+        
+        let categoryPredicate = NSPredicate(format: "parentCategory.name MATCHES  %@", selectedCategory!.name!)
+        
+        if let additionalPredicate = predicate {
+            request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [categoryPredicate, additionalPredicate])
+        } else {
+            request.predicate = categoryPredicate
         }
+        
+       
+        
+        
+        do{
+           itemArray = try context.fetch(request)
+        } catch {
+            print("Error fetching data from  context \(error)")
+        }
+        
+        tableView.reloadData()
+        
     }
     
 
+
+}
+
+//MARK: - Search bar methods
+
+extension TodoListViewController: UISearchBarDelegate{
+    
+    func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
+        
+        let request : NSFetchRequest<Item> = Item.fetchRequest()
+        
+        let predicate = NSPredicate(format: "title CONTAINS[cd] %@", searchBar.text!)
+        
+        request.sortDescriptors = [NSSortDescriptor(key: "title", ascending: true)]
+        
+        loadItems(with: request, predicate: predicate)
+   
+//        do{
+//            itemArray = try context.fetch(request)
+//        } catch {
+//            print("Error fetching data from context \(error)")
+//        }
+        
+        
+//        tableView.reloadData()
+       
+    }
+    
+    func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
+        
+        if searchBar.text?.count == 0 {
+            loadItems()
+            
+            DispatchQueue.main.async {  //arkada loaditems thread işlem yaparken aynı anda async olarak kontrolü maine verip UI güncelleme işlemi yapmak için
+               searchBar.resignFirstResponder()  //run this method on main queue, this code is being run in the foreground.
+            }
+         
+        }
+    }
+ 
 }
 
