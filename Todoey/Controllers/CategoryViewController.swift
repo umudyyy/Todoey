@@ -8,13 +8,22 @@
 
 import UIKit
 import CoreData
+import RealmSwift
 
 class CategoryViewController: UITableViewController {
     
     
-    var categories = [Category]()
+    let realm = try! Realm()   // do catch'e de alabiliriz. Ama hata çıkmıcak devam et diyorsun. Realm için doğru bir kullanım şekli. Çünkü genelde kaynaklar yeterli değilse vs. uygulama sadece ilk çalışmasında realm oluşturamayabilir(?)
     
-    let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
+//    var categories = [Category]() // CoreData,NSManaged için
+    
+//    var categories: Results<Category>!   // Realm için..(An implicitly unwrapped optional).Auto Obtaining container
+    
+     var categories: Results<Category>?    // Realm için..(An explicitly unwrapped optional) Yukarıdakini buna çevirdik. Auto Obtaining container
+  
+    
+    
+//    let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext  //CoreData, NSManaged
     
     
     override func viewDidLoad() {
@@ -30,7 +39,8 @@ class CategoryViewController: UITableViewController {
     //MARK: - TableView Datasource Methods
     
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return categories.count
+        
+        return categories?.count ?? 1  // ?? --> nil coellesing operator.
     }
     
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
@@ -41,9 +51,9 @@ class CategoryViewController: UITableViewController {
         
         let cell = tableView.dequeueReusableCell(withIdentifier: "CategoryCell", for: indexPath)
         
-        let category = categories[indexPath.row]
+        cell.textLabel?.text = categories?[indexPath.row].name ?? "No Categories Added yet."
         
-        cell.textLabel?.text = category.name
+      
         
         //Ternary operator
 //        cell.accessoryType = item.done ? .checkmark : .none
@@ -57,7 +67,6 @@ class CategoryViewController: UITableViewController {
         
         return cell
     }
-
     
     //MARK: - TableView Delegate Methods
     
@@ -73,14 +82,14 @@ class CategoryViewController: UITableViewController {
         
         if let indexPath = tableView.indexPathForSelectedRow {  //indexPathForSelectedRow optional old.için opt.binding yaptık.indexPathForSelectedRow?.xxxx demek gerekseydi unwrap etmek, ? koymak gerekirdi.
             
-            destinationVC.selectedCategory = categories[indexPath.row]
+           destinationVC.selectedCategory = categories?[indexPath.row]
         }
     }
     
     
     //MARK: - Data Manipulation Methods
     
-    func saveCategories()  {
+    func saveCategories(category: Category)  {
         
         //        let encoder =  PropertyListEncoder()
         
@@ -92,7 +101,11 @@ class CategoryViewController: UITableViewController {
         //        }
         
         do{
-            try context.save()
+//            try context.save()  //NSManaged
+            try realm.write {     // Realm
+                realm.add(category)
+            }
+            
         } catch {
             print("Error saving category \(error)")
         }
@@ -101,17 +114,28 @@ class CategoryViewController: UITableViewController {
     }
     
     
-    func loadCategories(with request: NSFetchRequest<Category> = Category.fetchRequest() ) {   // default value sağlıyoruz..
+    //func includes CoreData,NsManaged codes.
+//    func loadCategories(with request: NSFetchRequest<Category> = Category.fetchRequest() ) {   // default value sağlıyoruz..
+//
+//        //        let request : NSFetchRequest<Category> = Category.fetchRequest()
+//
+//        do{
+//            categories = try context.fetch(request)
+//        } catch {
+//            print("Error loading categories \(error)")
+//        }
+//        
+//        tableView.reloadData()
+//
+//    }
+    
+    
+    func loadCategories() {
         
-        //        let request : NSFetchRequest<Category> = Category.fetchRequest()
+         categories = realm.objects(Category.self)
         
-        do{
-            categories = try context.fetch(request)
-        } catch {
-            print("Error loading categories \(error)")
-        }
+         tableView.reloadData()
         
-        tableView.reloadData()
         
     }
     
@@ -131,15 +155,17 @@ class CategoryViewController: UITableViewController {
             
             if textField.text != "" && textField.text != nil {
      
-                let newCategory = Category(context: self.context)
-                
+//                let newCategory = Category(context: self.context)  //NSManaged
+                let newCategory = Category()   //Realm
                 newCategory.name = textField.text!
                 
 //                newItem.done = false
                 
-                self.categories.append(newCategory)
+//                self.categories.append(newCategory)  CoreData,NSManaged de kullandık. Realmde buna gerek yok. var categories: Results<Category>! deki categories, self.saveCategories(category: newCategory) kodu çalıştırdıktan sonra otomatik olarak güncellenir. Results'a option ile bak, auto updating container type.
                 
-                self.saveCategories()
+//                self.saveCategories()  //CoreData, NSManaged şekli
+                
+                self.saveCategories(category: newCategory) //  Realm şekli
           
             }
         
